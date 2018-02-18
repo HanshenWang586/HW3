@@ -124,7 +124,6 @@ class TweetForm(FlaskForm):
 def page_not_found(e):
     return render_template('404.html'), 404
 
-
 @app.errorhandler(500)
 def internal_server_error(e):
     return render_template('500.html'), 500
@@ -218,13 +217,25 @@ def see_all_tweets():
 
 @app.route('/all_users')
 def see_all_users():
-    pass # Replace with code
+    users = User.query.all()
+    return render_template('all_users.html',users=users) # Replace with code
     # TODO 364: Fill in this view function so it can successfully render the template all_users.html, which is provided.
 
 # TODO 364
 # Create another route (no scaffolding provided) at /longest_tweet with a view function get_longest_tweet (see details below for what it should do)
 # TODO 364
 # Create a template to accompany it called longest_tweet.html that extends from base.html.
+
+@app.route('/longest_tweet')
+def longest_tweet():
+    tweets = Tweet.query.all()
+    length = 0
+    for t in tweets:
+        if length <= len(t.text):
+            length = len(t.text)
+            longest = t.text
+    return render_template('longest_tweet.html', longest=longest)
+
 
 # NOTE:
 # This view function should compute and render a template (as shown in the sample application) that shows the text of the tweet currently saved in the database which has the most NON-WHITESPACE characters in it, and the username AND display name of the user that it belongs to.
@@ -236,7 +247,6 @@ def see_all_users():
 ## - Dictionary accumulation, the max value pattern
 ## - Sorting
 # may be useful for this problem!
-
 
 if __name__ == '__main__':
     db.create_all() # Will create any defined models when you run the application
