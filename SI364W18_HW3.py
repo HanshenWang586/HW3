@@ -1,25 +1,33 @@
 ## SI 364 - Winter 2018
 ## HW 3
+# Hanshen Wang
+# 40602121
+# Feb 6
 
 ####################
 ## Import statements
 ####################
-
+import os
 from flask import Flask, render_template, session, redirect, url_for, flash, request
+from flask_script import Shell, Manager
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, ValidationError
 from wtforms.validators import Required, Length
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate, MigrateCommand
 
 ############################
 # Application configurations
 ############################
+
+basedir = os.path.abspath(os.path.dirname(__file__))
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'hard to guess string from si364'
 ## TODO 364: Create a database in postgresql in the code line below, and fill in your app's database URI. It should be of the format: postgresql://localhost/YOUR_DATABASE_NAME
 
 ## Your final Postgres database should be your uniqname, plus HW3, e.g. "jczettaHW3" or "maupandeHW3"
-app.config["SQLALCHEMY_DATABASE_URI"] = ""
+app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://hanshen@localhost:5432/hanshenwHW3"
 ## Provided:
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -27,8 +35,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 ##################
 ### App setup ####
 ##################
-db = SQLAlchemy(app) # For database use
 
+manager = Manager(app)
+db = SQLAlchemy(app) # For database use
 
 #########################
 #########################
@@ -40,6 +49,22 @@ db = SQLAlchemy(app) # For database use
 #########################
 ##### Set up Models #####
 #########################
+
+class Tweet(db.Model):
+    __tablename__ = 'tweet'
+    ID = db.Column(db.Integer, primary_key=True)
+    text = db.Column(db.String(64))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.ID'))
+    
+    def __repr__(self):
+        return '<Tweet %r>' % self.ID
+
+class User(db.Model):
+    __tablename__ = 'users'
+    ID = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(64))
+    display_name = db.Column(db.String(64))
+
 
 ## TODO 364: Set up the following Model classes, as described, with the respective fields (data types).
 
@@ -68,6 +93,12 @@ db = SQLAlchemy(app) # For database use
 ########################
 ##### Set up Forms #####
 ########################
+
+class TweetForm(FlaskForm):
+    text = StringField('Enter the text of the tweet (no more than 280 chars):', validators=[Required()])
+    username = StringField('Enter the username of the twitter user (no "@"!):', validators=[Required()])
+    display_name = StringField('Enter the display name for the twitter user (must be at least 2 words):', validators=[Required()])
+    submit = SubmitField('Submit')
 
 # TODO 364: Fill in the rest of the below Form class so that someone running this web app will be able to fill in information about tweets they wish existed to save in the database:
 
@@ -114,9 +145,41 @@ def internal_server_error(e):
 # - If you enter a tweet with identical text and username to an existing tweet, it should redirect you to the list of all the tweets and a message that you've already saved a tweet like that.
 # - If the Tweet form is entered and validates properly, the data from the form should be saved properly to the database, and the user should see the form again with a message flashed: "Tweet successfully saved!"
 # Try it out in the sample app to check against yours!
-
-@app.route('/', methods=['GET', 'POST'])
+@app.route("/")
 def index():
+    form = TweetForm()
+    return render_template("index.html", form = form)
+
+
+@app.route('/addTweet', methods=['GET', 'POST'])
+def addTweet():    
+    form = TweetForm()
+    if request.method == 'POST':
+        text = form.text.data
+        username = form.username.data
+        display_name = form.display_name.data        
+        num_tweets = len(Tweet.query.all())
+        u = User.query.filter_by(username=username).first()
+        if u:
+            print("User exists")
+        else:
+            u= User(username=username,display_name=display_name)
+            db.session.add(u)
+            db.session.commit()
+
+        user_id = u.ID
+
+        t = Tweet.query.filter_by(text=text).first()
+
+        if t:
+            print("Tweet exsits")
+        else:
+            t = Tweet(text=text,user_id=user_id)
+            db.session.add(t)
+            db.session.commit()
+
+    # return "test"
+    return render_template("index.html", form = form, num_tweets=num_tweets)
     # Initialize the form
 
     # Get the number of Tweets
@@ -138,14 +201,16 @@ def index():
     ## Redirect to the index page
 
     # PROVIDED: If the form did NOT validate / was not submitted
-    errors = [v for v in form.errors.values()]
-    if len(errors) > 0:
-        flash("!!!! ERRORS IN FORM SUBMISSION - " + str(errors))
-    return render_template('index.html',) # TODO 364: Add more arguments to the render_template invocation to send data to index.html
+    # errors = [v for v in form.errors.values()]
+    # if len(errors) > 0:
+    #     flash("!!!! ERRORS IN FORM SUBMISSION - " + str(errors))
+    # return render_template('index.html',) # TODO 364: Add more arguments to the render_template invocation to send data to index.html
 
 @app.route('/all_tweets')
 def see_all_tweets():
-    pass # Replace with code
+    tweets = Tweet.query.all()
+    users = [(t, User.query.filter_by(ID=t.user_id).first()) for t in tweets]
+    return render_template('all_tweets.html', tweets=users) # Replace with code
     # TODO 364: Fill in this view function so that it can successfully render the template all_tweets.html, which is provided.
     # HINT: Careful about what type the templating in all_tweets.html is expecting! It's a list of... not lists, but...
     # HINT #2: You'll have to make a query for the tweet and, based on that, another query for the username that goes with it...
@@ -175,4 +240,5 @@ def see_all_users():
 
 if __name__ == '__main__':
     db.create_all() # Will create any defined models when you run the application
+    manager.run()
     app.run(use_reloader=True,debug=True) # The usual
