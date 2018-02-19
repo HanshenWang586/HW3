@@ -5,7 +5,7 @@
 <p> The tweet text with the most non-whitespace characters is: </p>
 <p>{{ longest }}, posted by <strong>@{{ user.username }}</strong></p>
 
-{% if not tweets %}
+{% if not longest %}
     There are no saved tweets to show.
 {% endif %}
 

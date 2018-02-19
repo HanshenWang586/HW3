@@ -3,6 +3,7 @@
 # Hanshen Wang
 # 40602121
 # Feb 6
+# Colloborator: Yuting Wu
 
 ####################
 ## Import statements
@@ -57,7 +58,7 @@ class Tweet(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.ID'))
     
     def __repr__(self):
-        return '<Tweet %r>' % self.ID
+        return '{Tweet %r} | ID: {%a}' % (self.text,self.ID)
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -65,6 +66,8 @@ class User(db.Model):
     username = db.Column(db.String(64))
     display_name = db.Column(db.String(64))
 
+    def __repr__(self):
+        return '{username %r} | ID: {%a}' % (self.username,self.ID)
 
 ## TODO 364: Set up the following Model classes, as described, with the respective fields (data types).
 
@@ -89,15 +92,22 @@ class User(db.Model):
 ## Should have a __repr__ method that returns strings of a format like:
 #### {username} | ID: {id}
 
-
 ########################
 ##### Set up Forms #####
 ########################
 
+def validate_username(form,field):
+    if str(field.data)[0] == '@':
+        raise ValidationError("Error:User name must not start with an '@'")
+
+def validate_displayName(form,field):
+    if str(field.data).count(' ') < 1 or str(field.data) == ' ':
+        raise ValidationError("Error: Display Name must be at least two words") 
+
 class TweetForm(FlaskForm):
-    text = StringField('Enter the text of the tweet (no more than 280 chars):', validators=[Required()])
-    username = StringField('Enter the username of the twitter user (no "@"!):', validators=[Required()])
-    display_name = StringField('Enter the display name for the twitter user (must be at least 2 words):', validators=[Required()])
+    text = StringField('Enter the text of the tweet (no more than 280 chars):', validators=[Required(),Length(1,280)])
+    username = StringField('Enter the username of the twitter user (no "@"!):', validators=[Required(),Length(1,64),validate_username])
+    display_name = StringField('Enter the display name for the twitter user (must be at least 2 words):', validators=[Required(),validate_displayName])
     submit = SubmitField('Submit')
 
 # TODO 364: Fill in the rest of the below Form class so that someone running this web app will be able to fill in information about tweets they wish existed to save in the database:
@@ -148,16 +158,18 @@ def internal_server_error(e):
 def index():
     form = TweetForm()
     num_tweets = len(Tweet.query.all())
+    
+
     return render_template("index.html", form = form, num_tweets=num_tweets)
 
 @app.route('/addTweet', methods=['GET', 'POST'])
 def addTweet():
-    form = TweetForm()
-    if request.method == 'POST':
+    form = TweetForm(request.form)
+    
+    if form.validate_on_submit():
         text = form.text.data
         username = form.username.data
-        display_name = form.display_name.data        
-        num_tweets = len(Tweet.query.all())
+        display_name = form.display_name.data
         u = User.query.filter_by(username=username).first()
         if u:
             print("User exists")
@@ -166,18 +178,21 @@ def addTweet():
             db.session.add(u)
             db.session.commit()
 
-        user_id = u.ID
-
-        t = Tweet.query.filter_by(text=text).first()
-
+        t = Tweet.query.filter_by(text=text,user_id=u.ID).first()
         if t:
             print("Tweet exsits")
+            return redirect(url_for('see_all_tweets'))
         else:
-            t = Tweet(text=text,user_id=user_id)
+            t = Tweet(text=text,user_id=u.ID)
             db.session.add(t)
             db.session.commit()
-
-    # return "test"
+            return redirect(url_for('index'))
+    
+    errors = [v for v in form.errors.values()]
+    if len(errors) > 0:
+        flash("!!!! ERRORS IN FORM SUBMISSION - " + str(errors))
+    num_tweets = len(Tweet.query.all())
+    
     return render_template("index.html", form = form, num_tweets=num_tweets)
     # Initialize the form
     # Get the number of Tweets
@@ -198,10 +213,7 @@ def addTweet():
     ## Redirect to the index page
 
     # PROVIDED: If the form did NOT validate / was not submitted
-    # errors = [v for v in form.errors.values()]
-    # if len(errors) > 0:
-    #     flash("!!!! ERRORS IN FORM SUBMISSION - " + str(errors))
-    # return render_template('index.html',) # TODO 364: Add more arguments to the render_template invocation to send data to index.html
+ # TODO 364: Add more arguments to the render_template invocation to send data to index.html
 
 @app.route('/all_tweets')
 def see_all_tweets():
