@@ -3,7 +3,7 @@
 {% block content %}
 <ul>
 {% for t in tweets %}
-    <li>{{ t[0] }}<br><i>posted by</i> <strong>@{{ t[1] }}</strong></li><br><br>
+    <li>{{ t[0].text }}<br><i>posted by</i> <strong>@{{ t[1].username }}</strong></li><br><br>
 {% endfor %}
 </ul>
 

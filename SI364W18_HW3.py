@@ -147,11 +147,11 @@ def internal_server_error(e):
 @app.route("/")
 def index():
     form = TweetForm()
-    return render_template("index.html", form = form)
-
+    num_tweets = len(Tweet.query.all())
+    return render_template("index.html", form = form, num_tweets=num_tweets)
 
 @app.route('/addTweet', methods=['GET', 'POST'])
-def addTweet():    
+def addTweet():
     form = TweetForm()
     if request.method == 'POST':
         text = form.text.data
@@ -180,9 +180,7 @@ def addTweet():
     # return "test"
     return render_template("index.html", form = form, num_tweets=num_tweets)
     # Initialize the form
-
     # Get the number of Tweets
-
     # If the form was posted to this route,
     ## Get the data from the form
 
@@ -214,7 +212,6 @@ def see_all_tweets():
     # HINT: Careful about what type the templating in all_tweets.html is expecting! It's a list of... not lists, but...
     # HINT #2: You'll have to make a query for the tweet and, based on that, another query for the username that goes with it...
 
-
 @app.route('/all_users')
 def see_all_users():
     users = User.query.all()
@@ -230,12 +227,14 @@ def see_all_users():
 def longest_tweet():
     tweets = Tweet.query.all()
     length = 0
+    longest = ''
     for t in tweets:
-        if length <= len(t.text):
-            length = len(t.text)
-            longest = t.text
-    return render_template('longest_tweet.html', longest=longest)
-
+        lenWOspace = len(t.text) - t.text.count(' ')
+        if length <= lenWOspace:
+            length = lenWOspace
+            longest = t
+            user = User.query.filter_by(ID=longest.user_id).first()
+    return render_template('longest_tweet.html', longest=longest.text, user=user)
 
 # NOTE:
 # This view function should compute and render a template (as shown in the sample application) that shows the text of the tweet currently saved in the database which has the most NON-WHITESPACE characters in it, and the username AND display name of the user that it belongs to.
