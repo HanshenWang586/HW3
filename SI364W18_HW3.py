@@ -158,8 +158,6 @@ def internal_server_error(e):
 def index():
     form = TweetForm()
     num_tweets = len(Tweet.query.all())
-    
-
     return render_template("index.html", form = form, num_tweets=num_tweets)
 
 @app.route('/addTweet', methods=['GET', 'POST'])
